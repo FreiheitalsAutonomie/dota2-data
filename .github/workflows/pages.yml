@@ -23,7 +23,7 @@ jobs:
       - name: Restore the read-only frontend bundle
         run: |
           cat site/assets/index-CTqgpeZX.js.part*.b64 | base64 --decode | gzip --decompress > site/assets/index-CTqgpeZX.js
-          cat site/assets/index-BVcMktdt.css.part0.b64 | base64 --decode | gzip --decompress > site/assets/index-BVcMktdt.css
+          cat site/assets/index-BVcMktdt.css.part*.b64 | base64 --decode | gzip --decompress > site/assets/index-BVcMktdt.css
           rm site/assets/*.part*.b64
       - uses: actions/setup-node@v4
         with:
