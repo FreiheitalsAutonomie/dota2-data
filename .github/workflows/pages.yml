@@ -20,11 +20,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Restore the read-only frontend bundle
-        run: |
-          cat site/assets/index-CTqgpeZX.js.part*.b64 | tr -d '\r' | base64 --decode | gzip --decompress > site/assets/index-CTqgpeZX.js
-          cat site/assets/index-BVcMktdt.css.part*.b64 | tr -d '\r' | base64 --decode | gzip --decompress > site/assets/index-BVcMktdt.css
-          rm site/assets/*.part*.b64
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
