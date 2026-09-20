@@ -20,7 +20,7 @@
  };
  const IDS = Object.keys(MATCHES);
  const newId = () => 'awa-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
- const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:''}])),matches:{}});
+ const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:'',captain:'',members:[]}])),matches:{}});
  const sourceLabel = source => source.seed || `${source.match} ${source.outcome==='winner'?'胜者':'负者'}`;
  const isLogo = value => typeof value === 'string' && value.length < 400000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
 
@@ -52,7 +52,10 @@
    const t=raw.teams[id];if(!t || typeof t.name!=='string')throw new Error(`缺少 ${id} 的战队数据。`);
    if(Array.from(t.name).length>24)throw new Error(`${id} 的战队名称超过 24 个字符。`);
    if(t.logo && !isLogo(t.logo))throw new Error(`${id} 的队标数据无效；只支持内嵌 PNG、JPG、WebP。`);
-   s.teams[id]={name:t.name.trim(),logo:t.logo||''};
+   const captain=t.captain??'', members=t.members??[];
+   if(typeof captain!=='string'||Array.from(captain).length>40)throw new Error(`${id} 的队长姓名最多 40 个字符。`);
+   if(!Array.isArray(members)||members.length>10||members.some(x=>typeof x!=='string'||!x.trim()||Array.from(x).length>40))throw new Error(`${id} 最多填写 10 位队员，每人姓名最多 40 个字符。`);
+   s.teams[id]={name:t.name.trim(),logo:t.logo||'',captain:captain.trim(),members:members.map(x=>x.trim())};
   }
   for(const id of IDS){
    const r=raw.matches[id];if(!r)continue;
@@ -79,4 +82,3 @@
  }
 
 export { SEEDS, MATCHES, IDS, blankState, getParticipants, reconcile, validateState, checkScores };
-

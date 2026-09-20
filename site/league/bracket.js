@@ -175,7 +175,7 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
   if(!canEdit)return;
   teamDraft=clone(state.teams);$('teamError').hidden=true;
   const groups=[['M1 · A1 / A2','A1','A2'],['M2 · A3 / A4','A3','A4'],['M3 · B1 / B2','B1','B2'],['M4 · B3 / B4','B3','B4']];
-  $('teamGrid').innerHTML=groups.map(([title,...ids])=>`<section><h3 class="team-group-title">${title}</h3>${ids.map(id=>`<div class="team-row"><button type="button" class="logo-upload" data-upload="${id}" aria-label="上传 ${id} 队标">${teamDraft[id].logo?`<img src="${teamDraft[id].logo}" alt="${id} 队标">`:`<span>${id}</span>`}</button><div class="team-field"><div class="field-label"><label for="name-${id}"><b>${id}</b> 战队名称</label><button type="button" data-remove-logo="${id}" ${teamDraft[id].logo?'':'hidden'}>移除队标</button></div><input id="name-${id}" name="${id}" type="text" maxlength="48" placeholder="输入战队名称" autocomplete="off" value="${esc(teamDraft[id].name)}"></div></div>`).join('')}</section>`).join('');
+  $('teamGrid').innerHTML=groups.map(([title,...ids])=>`<section><h3 class="team-group-title">${title}</h3>${ids.map(id=>`<div class="team-row"><button type="button" class="logo-upload" data-upload="${id}" aria-label="上传 ${id} 队标">${teamDraft[id].logo?`<img src="${teamDraft[id].logo}" alt="${id} 队标">`:`<span>${id}</span>`}</button><div class="team-field"><div class="field-label"><label for="name-${id}"><b>${id}</b> 战队名称</label><button type="button" data-remove-logo="${id}" ${teamDraft[id].logo?'':'hidden'}>移除队标</button></div><input id="name-${id}" name="${id}" type="text" maxlength="48" placeholder="输入战队名称" autocomplete="off" value="${esc(teamDraft[id].name)}"><label class="roster-label" for="captain-${id}">队长</label><input id="captain-${id}" type="text" maxlength="40" placeholder="队长姓名 / 游戏昵称" value="${esc(teamDraft[id].captain||'')}"><label class="roster-label" for="members-${id}">队员（每行一人，不含队长）</label><textarea id="members-${id}" rows="4" placeholder="填写其余队员，可包含替补">${esc((teamDraft[id].members||[]).join('\n'))}</textarea></div></div>`).join('')}</section>`).join('');
   $('teamDialog').showModal();
   requestAnimationFrame(()=>{const el=$('name-'+(focusSeed||'A1'));el.focus();el.select();});
  }
@@ -294,7 +294,9 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
  $('teamForm').addEventListener('submit',event=>{
   event.preventDefault();if(!canEdit)return;if(logoBusy){errorIn('teamError','正在处理队标，请稍后保存。');return;}
   for(const id of SEEDS){const name=$('name-'+id).value.trim();if(Array.from(name).length>24){errorIn('teamError',`${id} 的战队名称最多 24 个字符。`);$('name-'+id).focus();return;}teamDraft[id].name=name;}
-  state.teams=clone(teamDraft);save();render();$('teamDialog').close();toast('战队已保存；全部相关卡片已同步更新。');
+  for(const id of SEEDS){teamDraft[id].captain=$('captain-'+id).value.trim();teamDraft[id].members=$('members-'+id).value.split('\n').map(x=>x.trim()).filter(Boolean);}
+  try{state=validateState({...state,teams:clone(teamDraft)});}catch(e){errorIn('teamError',e.message);return;}
+  save();render();$('teamDialog').close();toast('战队名单已加入草稿；点击上方「发布赛程」保存到平台。');
  });
  $('matchSides').addEventListener('click',event=>{const button=event.target.closest('[data-winner]');if(button&&!button.disabled)selectWinner(button.dataset.winner);});
  $('matchForm').addEventListener('submit',async event=>{
@@ -343,6 +345,7 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
  }
  window.addEventListener('message',event=>{
   if(event.source!==window.parent||event.origin!==window.location.origin)return;
+  if(event.data?.type==='league:edit-team'){if(canEdit&&SEEDS.includes(event.data.seed))openTeams(event.data.seed);return;}
   if(event.data?.type==='league:lock'){canEdit=event.data.canEdit===true;applyAccess();return;}
   if(event.data?.type!=='league:init')return;
   try{
