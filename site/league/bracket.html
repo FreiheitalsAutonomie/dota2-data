@@ -38,16 +38,19 @@ dialog{color:var(--ink);font-family:var(--font);border:1px solid #dde2e9;padding
   <div class="menu-wrap"><button class="btn icon" id="moreToggle" aria-label="更多操作" aria-expanded="false" aria-controls="moreMenu"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button><div class="menu" id="moreMenu" hidden><button id="help">使用说明</button><button id="print">打印赛程</button><hr><button class="danger" id="clearResults">清空比赛结果 <small>保留战队</small></button><button class="danger" id="resetAll">重置全部内容</button></div></div>
  </nav>
 </header>
-<div class="hintbar"><div class="left"><svg class="inline-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg><span>点击分组赛队名编辑战队，点击场次卡片录入赛果；后续对阵自动更新。</span></div><div class="save-state" id="saveState" role="status"><i class="save-dot"></i><span>正在加载</span></div></div>
+<div class="hintbar"><div class="left"><svg class="inline-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg><span>先录入报名名单，再安排首轮对阵；后续对阵按赛果自动更新。</span></div><div class="save-state" id="saveState" role="status"><i class="save-dot"></i><span>正在加载</span></div></div>
 <div class="mobile-hint">横向滑动查看完整赛程。导出的图片和 HTML 始终保留完整画面。</div>
 <main class="workspace" aria-label="阿哇杯赛程"><div class="sheet" id="canvas"></div></main>
 <button class="btn presentation-exit" id="exitPresent" hidden>退出演示 <span class="keyboard">Esc</span></button>
 <noscript><p style="padding:30px">请在允许 JavaScript 的浏览器中打开本文件，以编辑战队和查看完整赛程。</p></noscript>
 
+<dialog class="team-dialog" id="assignmentDialog" aria-labelledby="assignmentTitle">
+ <form id="assignmentForm"><div class="dialog-head"><div><h2 id="assignmentTitle">安排首轮对阵</h2><p>从报名战队中选择参赛队伍。席位可以留空，同一队伍只能安排一次。</p></div><button type="button" class="close-button" data-close="assignmentDialog" aria-label="关闭">×</button></div><div class="dialog-body"><div class="team-grid" id="assignmentGrid"></div><div class="field-error" id="assignmentError" hidden></div></div><div class="dialog-foot"><button type="button" class="btn" data-close="assignmentDialog">取消</button><button type="submit" class="btn red">保存对阵安排</button></div></form>
+</dialog>
 <dialog class="team-dialog" id="teamDialog" aria-labelledby="teamDialogTitle">
  <form id="teamForm">
- <div class="dialog-head"><div><h2 id="teamDialogTitle">战队设置</h2><p>填写 8 支战队。名称与队标会同步到该战队后续的全部场次。</p></div><button type="button" class="close-button" data-close="teamDialog" aria-label="关闭">×</button></div>
- <div class="dialog-body"><div class="team-grid" id="teamGrid"></div><div class="info-box"><b>队标可选：</b>点击左侧方块上传 PNG、JPG 或 WebP，单张不超过 5 MB。图片会压缩并保存在此文件的数据中，发布赛程时一起保存到平台。<br>名称最多 24 个字符；未填写时使用 A1、A2 等席位编号。修改名称不会改变该席位已有的胜负记录。</div><div class="field-error" id="teamError" hidden></div></div>
+ <div class="dialog-head"><div><h2 id="teamDialogTitle">报名战队</h2><p>先填写队名和名单，不会自动安排对手。分组确定后再点击「安排对阵」。</p></div><button type="button" class="close-button" data-close="teamDialog" aria-label="关闭">×</button></div>
+ <div class="dialog-body"><div class="team-grid" id="teamGrid"></div><div class="info-box"><b>队标可选：</b>点击左侧方块上传 PNG、JPG 或 WebP，单张不超过 5 MB。图片会压缩并保存在此文件的数据中，发布赛程时一起保存到平台。<br>名称最多 24 个字符。报名编号与赛程席位独立，修改名单不会自动安排对手。</div><div class="field-error" id="teamError" hidden></div></div>
  <div class="dialog-foot"><span class="note">修改后点击平台上方「发布赛程」。</span><button type="button" class="btn" data-close="teamDialog">取消</button><button type="submit" class="btn red">保存战队</button></div>
  </form>
 </dialog>

@@ -20,14 +20,15 @@
  };
  const IDS = Object.keys(MATCHES);
  const newId = () => 'awa-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
- const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:'',captain:'',members:[]}])),matches:{}});
+ const teamLabel = id => `战队 ${SEEDS.indexOf(id)+1}`;
+ const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:'',captain:'',members:[]}])),assignments:Object.fromEntries(SEEDS.map(id=>[id,null])),matches:{}});
  const sourceLabel = source => source.seed || `${source.match} ${source.outcome==='winner'?'胜者':'负者'}`;
  const isLogo = value => typeof value === 'string' && value.length < 400000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
 
  function getParticipants(id, s, memo={}) {
   if(memo[id]) return memo[id];
   const pair=MATCHES[id].sources.map(source=>{
-   if(source.seed) return source.seed;
+   if(source.seed) return s.assignments?.[source.seed]??null;
    const upstream=getParticipants(source.match,s,memo), r=s.matches[source.match];
    if(!r || !r.winnerId || upstream.some(x=>!x) || !upstream.every((x,i)=>x===r.teamIds[i]) || !upstream.includes(r.winnerId)) return null;
    return source.outcome==='winner' ? r.winnerId : upstream.find(x=>x!==r.winnerId);
@@ -48,6 +49,11 @@
   const s=blankState();
   s.workspaceId=typeof raw.workspaceId==='string' && /^[a-zA-Z0-9_-]{1,100}$/.test(raw.workspaceId) ? raw.workspaceId:newId();
   s.updatedAt=typeof raw.updatedAt==='string' && Number.isFinite(Date.parse(raw.updatedAt))?raw.updatedAt:null;
+  // Older seasons only had slot-bound teams. Preserve played brackets; unplayed rosters become unassigned.
+  const assignments=raw.assignments===undefined?Object.fromEntries(SEEDS.map(id=>[id,Object.keys(raw.matches).length?id:null])):raw.assignments;
+  if(!assignments||typeof assignments!=='object'||Array.isArray(assignments))throw new Error('对阵安排格式无效。');
+  const used=new Set();
+  for(const slot of SEEDS){const id=assignments[slot]??null;if(id!==null&&(!SEEDS.includes(id)||used.has(id)))throw new Error('同一战队不能重复安排到多个席位。');if(id)used.add(id);s.assignments[slot]=id;}
   for(const id of SEEDS){
    const t=raw.teams[id];if(!t || typeof t.name!=='string')throw new Error(`缺少 ${id} 的战队数据。`);
    if(Array.from(t.name).length>24)throw new Error(`${id} 的战队名称超过 24 个字符。`);
@@ -81,4 +87,4 @@
   return '';
  }
 
-export { SEEDS, MATCHES, IDS, blankState, getParticipants, reconcile, validateState, checkScores };
+export { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants, reconcile, validateState, checkScores };

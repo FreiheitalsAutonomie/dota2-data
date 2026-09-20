@@ -1,4 +1,4 @@
-import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile, validateState, checkScores } from './bracket-core.mjs';
+import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveParticipants, reconcile, validateState, checkScores } from './bracket-core.mjs';
 'use strict';
 /* 阿哇杯本地赛程编辑器。无外部依赖。
  * 修改分组席位名称请使用界面的「战队设置」。
@@ -19,7 +19,6 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
  const esc = value => String(value??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const clone = value => JSON.parse(JSON.stringify(value));
  const newId = () => 'awa-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
- const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:''}])),matches:{}});
  const sourceLabel = source => source.seed || `${source.match} ${source.outcome==='winner'?'胜者':'负者'}`;
  const isLogo = value => typeof value === 'string' && value.length < 400000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
  const font = 'Arial, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
@@ -45,7 +44,7 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
   $('teamCount').textContent=SEEDS.filter(x=>state.teams[x].name).length+' / 8';
   $('resultCount').textContent=IDS.filter(x=>state.matches[x]?.winnerId).length+' / 14';
  }
- function displayName(id){return id ? (state.teams[id].name||id):'';}
+ function displayName(id){return id ? (state.teams[id].name||teamLabel(id)):'';}
  function fitSize(value,maxWidth,start=19,min=16,weight=600){
   for(let size=start;size>=min;size--){measure.font=`${weight} ${size}px ${font}`;if(measure.measureText(value).width<=maxWidth)return size;}return min;
  }
@@ -73,20 +72,20 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
  }
  function groupCard(id){
   const p=LAYOUT[id],m=MATCHES[id],participants=getParticipants(id),r=state.matches[id];
-  let s=`<g class="match-card group-card" data-match="${id}" tabindex="0" role="button" aria-label="${id}，分组赛，点击录入赛果"><title>${id} · ${participants.map(displayName).map(esc).join(' vs ')}；点击队名编辑战队，点击场次编号录入赛果</title>`;
+  let s=`<g class="match-card group-card" data-match="${id}" tabindex="0" role="button" aria-label="${id}，分组赛，点击录入赛果"><title>${id} · ${participants.map(displayName).map(esc).join(' vs ')}；点击席位安排战队，点击场次编号录入赛果</title>`;
   s+=rect(p.x,p.y,p.w,p.h,'#fff','#d5dce6',3,'class="card-outline"');
   s+=rect(p.x+1,p.y+1,p.w-2,31,'#edf0f4');
   s+=text(p.x+16,p.y+23,id,20,700)+statusSvg(id,p.x+p.w-14,p.y+22);
   s+=text(p.x+p.w/2,p.y+79,'VS',15,500,'#9aa3b0','text-anchor="middle"');
   for(let i=0;i<2;i++){
-   const tid=participants[i],t=state.teams[tid],cx=p.x+(i===0?75:205),isWin=r?.winnerId===tid,isLoss=r?.winnerId&&r.winnerId!==tid;
-   s+=`<g class="team-hit" data-team="${tid}" tabindex="0" role="button" aria-label="编辑 ${tid} 战队"><title>${esc(tid+' · '+displayName(tid))}</title>`;
+   const tid=participants[i],slot=m.sources[i].seed,t=state.teams[tid],cx=p.x+(i===0?75:205),isWin=tid&&r?.winnerId===tid,isLoss=tid&&r?.winnerId&&r.winnerId!==tid;
+   s+=`<g class="team-hit" data-slot="${slot}" tabindex="0" role="button" aria-label="安排 ${slot} 席位"><title>${esc(slot+' · '+(displayName(tid)||'待安排'))}</title>`;
    s+=rect(cx-60,p.y+34,120,72,'transparent','none',2,'class="team-hover"');
-   if(t.name||t.logo){
+   if(t){
     s+=logoSvg(tid,cx-15,p.y+39,30);
     const nameSize=fitSize(displayName(tid),114,19,16,isWin?800:600);
     s+=text(cx,p.y+94,fitText(displayName(tid),114,nameSize,isWin?800:600),nameSize,isWin?800:600,isLoss?'#9da5b0':'#171c24','text-anchor="middle"');
-   } else s+=text(cx,p.y+81,tid,29,isWin?800:700,isLoss?'#9da5b0':'#171c24','text-anchor="middle"');
+   } else s+=text(cx,p.y+72,slot,24,700,'#7a8698','text-anchor="middle"')+text(cx,p.y+96,'待安排',14,400,'#7a8698','text-anchor="middle"');
    if(isWin)s+=`<path d="m${cx+39} ${p.y+49} 4 4 7-8" fill="none" stroke="#242d39" stroke-width="2"/>`;
    s+='</g>';
   }
@@ -171,11 +170,25 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
   updateStats();
  }
 
+ function openAssignments(focusSlot){
+  if(!canEdit)return;
+  $('assignmentError').hidden=true;
+  $('assignmentGrid').innerHTML=['M1','M2','M3','M4'].map(match=>`<section><h3>${match}</h3>${MATCHES[match].sources.map(({seed:slot})=>`<label class="roster-label" for="slot-${slot}">${slot}</label><select id="slot-${slot}" style="width:100%;min-height:42px;font-size:16px"><option value="">待安排</option>${SEEDS.filter(id=>state.teams[id].name||state.assignments[slot]===id).map(id=>`<option value="${id}" ${state.assignments[slot]===id?'selected':''}>${esc(displayName(id))}（${teamLabel(id)}）</option>`).join('')}</select>`).join('')}</section>`).join('');
+  $('assignmentDialog').showModal();requestAnimationFrame(()=>$('slot-'+(focusSlot||'A1')).focus());
+ }
+ $('assignmentForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(!canEdit)return;
+  const candidate=clone(state);candidate.assignments=Object.fromEntries(SEEDS.map(slot=>[slot,$('slot-'+slot).value||null]));
+  const removed=reconcile(candidate);
+  try{validateState(candidate);}catch(e){errorIn('assignmentError',e.message);return;}
+  if(removed.length&&!await confirmAction('调整对阵会清除相关赛果',`将清除 ${removed.join('、')} 的旧赛果；报名名单保持不变。`,'确认调整'))return;
+  state=candidate;save();render();$('assignmentDialog').close();
+ });
  function openTeams(focusSeed){
   if(!canEdit)return;
   teamDraft=clone(state.teams);$('teamError').hidden=true;
-  const groups=[['M1 · A1 / A2','A1','A2'],['M2 · A3 / A4','A3','A4'],['M3 · B1 / B2','B1','B2'],['M4 · B3 / B4','B3','B4']];
-  $('teamGrid').innerHTML=groups.map(([title,...ids])=>`<section><h3 class="team-group-title">${title}</h3>${ids.map(id=>`<div class="team-row"><button type="button" class="logo-upload" data-upload="${id}" aria-label="上传 ${id} 队标">${teamDraft[id].logo?`<img src="${teamDraft[id].logo}" alt="${id} 队标">`:`<span>${id}</span>`}</button><div class="team-field"><div class="field-label"><label for="name-${id}"><b>${id}</b> 战队名称</label><button type="button" data-remove-logo="${id}" ${teamDraft[id].logo?'':'hidden'}>移除队标</button></div><input id="name-${id}" name="${id}" type="text" maxlength="48" placeholder="输入战队名称" autocomplete="off" value="${esc(teamDraft[id].name)}"><label class="roster-label" for="captain-${id}">队长</label><input id="captain-${id}" type="text" maxlength="40" placeholder="队长姓名 / 游戏昵称" value="${esc(teamDraft[id].captain||'')}"><label class="roster-label" for="members-${id}">队员（每行一人，不含队长）</label><textarea id="members-${id}" rows="4" placeholder="填写其余队员，可包含替补">${esc((teamDraft[id].members||[]).join('\n'))}</textarea></div></div>`).join('')}</section>`).join('');
+  const groups=[['报名战队 1–2','A1','A2'],['报名战队 3–4','A3','A4'],['报名战队 5–6','B1','B2'],['报名战队 7–8','B3','B4']];
+  $('teamGrid').innerHTML=groups.map(([title,...ids])=>`<section><h3 class="team-group-title">${title}</h3>${ids.map(id=>`<div class="team-row"><button type="button" class="logo-upload" data-upload="${id}" aria-label="上传 ${id} 队标">${teamDraft[id].logo?`<img src="${teamDraft[id].logo}" alt="${id} 队标">`:`<span>${SEEDS.indexOf(id)+1}</span>`}</button><div class="team-field"><div class="field-label"><label for="name-${id}"><b>${teamLabel(id)}</b> 名称</label><button type="button" data-remove-logo="${id}" ${teamDraft[id].logo?'':'hidden'}>移除队标</button></div><input id="name-${id}" name="${id}" type="text" maxlength="48" placeholder="输入战队名称" autocomplete="off" value="${esc(teamDraft[id].name)}"><label class="roster-label" for="captain-${id}">队长</label><input id="captain-${id}" type="text" maxlength="40" placeholder="队长姓名 / 游戏昵称" value="${esc(teamDraft[id].captain||'')}"><label class="roster-label" for="members-${id}">队员（每行一人，不含队长）</label><textarea id="members-${id}" rows="4" placeholder="填写其余队员，可包含替补">${esc((teamDraft[id].members||[]).join('\n'))}</textarea></div></div>`).join('')}</section>`).join('');
   $('teamDialog').showModal();
   requestAnimationFrame(()=>{const el=$('name-'+(focusSeed||'A1'));el.focus();el.select();});
  }
@@ -202,9 +215,9 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
   activeMatch=id;const m=MATCHES[id],pair=getParticipants(id),r=state.matches[id];selectedWinner=r?.winnerId||null;
   $('matchError').hidden=true;$('matchKicker').textContent='AWA CUP / '+id;
   $('matchTitle').textContent=id+' · '+m.stage;
-  $('matchSubtitle').textContent=pair.every(Boolean)?'选择获胜战队；双方比分可选填。':'等待上游赛果，参赛战队尚未全部确定。';
-  $('matchSides').innerHTML=pair.map((tid,i)=>`<div class="match-side"><div class="match-logo">${tid&&state.teams[tid].logo?`<img src="${state.teams[tid].logo}" alt="队标">`:`<span>${tid||'—'}</span>`}</div><div class="match-team"><div class="match-team-name">${esc(tid?displayName(tid):sourceLabel(m.sources[i]))}</div><div class="match-team-source">${esc(tid?(m.sources[i].seed?`分组席位 ${tid}`:`来源：${sourceLabel(m.sources[i])}`):`需先完成 ${m.sources[i].match}`)}</div></div><input class="score-input" id="score-${i}" type="number" min="0" max="${Number(id.slice(1))<=4?1:99}" step="1" inputmode="numeric" placeholder="—" aria-label="${esc(tid?displayName(tid):sourceLabel(m.sources[i]))} 比分" value="${r?.scores[i]??''}" ${pair.every(Boolean)?'':'disabled'}><button type="button" class="winner-choice" data-winner="${tid||''}" aria-pressed="${!!tid&&selectedWinner===tid}" ${pair.every(Boolean)?'':'disabled'}>${tid&&selectedWinner===tid?'✓ 胜者':'设为胜者'}</button></div>`).join('');
-  $('resultInfo').textContent=pair.every(Boolean)?'点击已选胜者可取消选择。仅填写比分不会自动宣布胜者；确定胜负后，请选择胜者并保存。':'后续对阵按固定晋级来源自动填充，不支持绕过上游结果直接替换战队。请先录入上游比赛。';
+  $('matchSubtitle').textContent=pair.every(Boolean)?'选择获胜战队；双方比分可选填。':(Number(id.slice(1))<=4?'请先安排首轮参赛战队。':'等待上游赛果，参赛战队尚未全部确定。');
+  $('matchSides').innerHTML=pair.map((tid,i)=>`<div class="match-side"><div class="match-logo">${tid&&state.teams[tid].logo?`<img src="${state.teams[tid].logo}" alt="队标">`:`<span>${tid||'—'}</span>`}</div><div class="match-team"><div class="match-team-name">${esc(tid?displayName(tid):sourceLabel(m.sources[i]))}</div><div class="match-team-source">${esc(tid?(m.sources[i].seed?`分组席位 ${m.sources[i].seed}`:`来源：${sourceLabel(m.sources[i])}`):(m.sources[i].seed?`待安排席位 ${m.sources[i].seed}`:`需先完成 ${m.sources[i].match}`))}</div></div><input class="score-input" id="score-${i}" type="number" min="0" max="${Number(id.slice(1))<=4?1:99}" step="1" inputmode="numeric" placeholder="—" aria-label="${esc(tid?displayName(tid):sourceLabel(m.sources[i]))} 比分" value="${r?.scores[i]??''}" ${pair.every(Boolean)?'':'disabled'}><button type="button" class="winner-choice" data-winner="${tid||''}" aria-pressed="${!!tid&&selectedWinner===tid}" ${pair.every(Boolean)?'':'disabled'}>${tid&&selectedWinner===tid?'✓ 胜者':'设为胜者'}</button></div>`).join('');
+  $('resultInfo').textContent=pair.every(Boolean)?'点击已选胜者可取消选择。仅填写比分不会自动宣布胜者；确定胜负后，请选择胜者并保存。':(Number(id.slice(1))<=4?'管理员可点击「安排对阵」选择已报名的队伍。':'后续对阵由上游赛果决定，请先录入上游比赛。');
   let route=m.winTo?`胜者 → ${m.winTo}`:'胜者 → 阿哇杯冠军';
   route+=m.loseTo?`　｜　负者 → ${m.loseTo}`:id==='M14'?'　｜　负者 → 亚军':'　｜　负者结束本届比赛';
   if(Number(id.slice(1))<=4)route+='。分组赛为 BO1。';
@@ -275,11 +288,11 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
  // Event bindings: delegated SVG clicks remain valid after every redraw.
  $('canvas').addEventListener('click',event=>{
   if(presentation)return;
-  const team=event.target.closest('[data-team]');if(team){openTeams(team.dataset.team);return;}
+  const slot=event.target.closest('[data-slot]');if(slot){openAssignments(slot.dataset.slot);return;}
   const match=event.target.closest('[data-match]');if(match)openMatch(match.dataset.match);
  });
  $('canvas').addEventListener('keydown',event=>{
-  if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-team],[data-match]')){event.preventDefault();event.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}
+  if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-slot],[data-match]')){event.preventDefault();event.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}
  });
  $('editTeams').addEventListener('click',()=>openTeams());
  $('teamGrid').addEventListener('click',event=>{
@@ -341,10 +354,11 @@ import { SEEDS, MATCHES, IDS, getParticipants as resolveParticipants, reconcile,
   for(const id of ['editTeams','importJSON','clearResults','resetAll'])$(id).hidden=!canEdit;
   $('exportHTML').hidden=true;
   document.body.classList.toggle('view-only',!canEdit);
-  document.querySelector('.hintbar .left span').textContent=canEdit?'点击队名设置战队，点击场次录入赛果；修改后点击上方「发布赛程」。':'点击场次查看比分；胜者与负者按赛制自动晋级。';
+  document.querySelector('.hintbar .left span').textContent=canEdit?'报名后点击席位安排对阵；确定参赛双方后可录入赛果。':'点击场次查看比分；胜者与负者按赛制自动晋级。';
  }
  window.addEventListener('message',event=>{
   if(event.source!==window.parent||event.origin!==window.location.origin)return;
+  if(event.data?.type==='league:arrange'){if(canEdit)openAssignments();return;}
   if(event.data?.type==='league:edit-team'){if(canEdit&&SEEDS.includes(event.data.seed))openTeams(event.data.seed);return;}
   if(event.data?.type==='league:lock'){canEdit=event.data.canEdit===true;applyAccess();return;}
   if(event.data?.type!=='league:init')return;
