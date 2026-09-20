@@ -3,7 +3,7 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { validateSnapshot } from "../lib/mirror-snapshot.mjs";
 
-export async function synchronize({ source = "https://dota2-scrim-stats.death1never1die.chatgpt.site/api/public-snapshot", directory = "site/data", fetcher = fetch } = {}) {
+export async function synchronize({ source = "https://dota2-data.death1never1die.chatgpt.site/api/public-snapshot", directory = "site/data", fetcher = fetch } = {}) {
   const response = await fetcher(source, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(60000), redirect: "error" });
   if (!response.ok) throw new Error(`原站导出失败（${response.status}），保留已发布数据。`);
   const snapshot = validateSnapshot(await response.json());
