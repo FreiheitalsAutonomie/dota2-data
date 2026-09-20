@@ -24,6 +24,8 @@ jobs:
         with:
           node-version: '22'
       - name: Fetch and validate one complete public snapshot
+        env:
+          SITES_SYNC_TOKEN: ${{ secrets.SITES_SYNC_TOKEN }}
         run: node scripts/sync-mirror.mjs site/data
       - name: Bundle hero portraits for same-origin viewing
         run: node scripts/sync-mirror-assets.mjs site

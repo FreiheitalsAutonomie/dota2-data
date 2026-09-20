@@ -3,8 +3,11 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { validateSnapshot } from "../lib/mirror-snapshot.mjs";
 
-export async function synchronize({ source = "https://dota2-data.death1never1die.chatgpt.site/api/public-snapshot", directory = "site/data", fetcher = fetch } = {}) {
-  const response = await fetcher(source, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(60000), redirect: "error" });
+export async function synchronize({ source = "https://dota2-data.death1never1die.chatgpt.site/api/public-snapshot", directory = "site/data", fetcher = fetch, token = process.env.SITES_SYNC_TOKEN } = {}) {
+  if (!token?.trim()) throw new Error("缺少 SITES_SYNC_TOKEN，请先配置 GitHub Actions 同步凭证；保留已发布数据。");
+  const sourceUrl = new URL(source);
+  if (sourceUrl.origin !== "https://dota2-data.death1never1die.chatgpt.site" || sourceUrl.pathname !== "/api/public-snapshot" || sourceUrl.username || sourceUrl.password) throw new Error("同步凭证仅允许发送给原站的数据导出接口。");
+  const response = await fetcher(sourceUrl.href, { headers: { Accept: "application/json", "OAI-Sites-Authorization": `Bearer ${token.trim()}` }, signal: AbortSignal.timeout(60000), redirect: "error" });
   if (!response.ok) throw new Error(`原站导出失败（${response.status}），保留已发布数据。`);
   const snapshot = validateSnapshot(await response.json());
   const target = resolve(directory);
