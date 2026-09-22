@@ -1,6 +1,7 @@
 import { mkdir, writeFile, rename } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 import { validateSnapshot } from "../lib/mirror-snapshot.mjs";
 
 export async function synchronize({ source = "https://dota2-data.death1never1die.chatgpt.site/api/public-snapshot", directory = "site/data", fetcher = fetch, token = process.env.SITES_SYNC_TOKEN } = {}) {
@@ -12,7 +13,17 @@ export async function synchronize({ source = "https://dota2-data.death1never1die
   const snapshot = validateSnapshot(await response.json());
   const target = resolve(directory);
   await mkdir(target, { recursive: true });
+  snapshot.contentIndex = {};
+  await mkdir(join(target, 'matches'), {recursive:true});
+  for(const [id,content] of Object.entries(snapshot.matchContents ?? {})) {
+    const body = JSON.stringify(content);
+    const file = `${createHash('sha256').update(body).digest('hex')}.json`;
+    await writeFile(join(target,'matches',file),body);
+    snapshot.contentIndex[id] = {file};
+  }
+  delete snapshot.matchContents;
   // A single atomic file keeps games, merges and Base MMR on the same revision.
+  // Immutable module files are written first; publish the index only after all succeed.
   await writeFile(join(target, "snapshot.json.tmp"), JSON.stringify(snapshot));
   await rename(join(target, "snapshot.json.tmp"), join(target, "snapshot.json"));
   console.log(`同步完成：${snapshot.matches.length} 场比赛，${snapshot.players.length} 个游戏身份，${snapshot.exportedAt}`);
