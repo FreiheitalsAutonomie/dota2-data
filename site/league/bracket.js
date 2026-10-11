@@ -1,4 +1,4 @@
-import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveParticipants, reconcile, validateState, checkScores } from './bracket-core.mjs';
+import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveParticipants, reconcile, validateState, checkScores, formatSchedule } from './bracket-core.mjs';
 'use strict';
 /* 阿哇杯本地赛程编辑器。无外部依赖。
  * 修改分组席位名称请使用界面的「战队设置」。
@@ -76,6 +76,7 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   s+=rect(p.x,p.y,p.w,p.h,'#fff','#d5dce6',3,'class="card-outline"');
   s+=rect(p.x+1,p.y+1,p.w-2,31,'#edf0f4');
   s+=text(p.x+16,p.y+23,id,20,700)+statusSvg(id,p.x+p.w-14,p.y+22);
+  s+=text(p.x+p.w/2,p.y+22,formatSchedule(state.schedules[id]),12,600,'#54657c','text-anchor="middle"');
   s+=text(p.x+p.w/2,p.y+79,'VS',15,500,'#9aa3b0','text-anchor="middle"');
   for(let i=0;i<2;i++){
    const tid=participants[i],slot=m.sources[i].seed,t=state.teams[tid],cx=p.x+(i===0?75:205),isWin=tid&&r?.winnerId===tid,isLoss=tid&&r?.winnerId&&r.winnerId!==tid;
@@ -99,6 +100,7 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   let s=`<g class="match-card" data-match="${id}" tabindex="0" role="button" aria-label="${id}，${m.stage}，点击录入赛果"><title>${esc(id+' · '+m.stage+'；'+m.sources.map((source,i)=>participants[i]?displayName(participants[i])+'（'+sourceLabel(source)+'）':sourceLabel(source)).join(' vs '))}</title>`;
   s+=rect(p.x,p.y,p.w,p.h,'#fff','#d5dce6',3,'class="card-outline"')+rect(p.x+1,p.y+1,p.w-2,27,'#edf0f4');
   s+=text(p.x+15,p.y+21,id,20,700)+statusSvg(id,p.x+p.w-12,p.y+20);
+  s+=text(p.x+127,p.y+20,formatSchedule(state.schedules[id]),12,600,'#54657c','text-anchor="middle"');
   for(let i=0;i<2;i++){
    const tid=participants[i],label=tid?displayName(tid):sourceLabel(m.sources[i]),isWin=tid&&r?.winnerId===tid,isLoss=tid&&r?.winnerId&&r.winnerId!==tid,ry=p.y+28+i*36;
    if(isWin)s+=rect(p.x+1,ry,p.w-2,36,'#f5f6f8');
@@ -118,7 +120,8 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   const id='M14',p=LAYOUT[id],m=MATCHES[id],participants=getParticipants(id),r=state.matches[id];
   let s=`<g class="match-card final-card" data-match="M14" tabindex="0" role="button" aria-label="M14 总决赛，点击录入赛果"><title>总决赛 · ${esc(participants.map((t,i)=>t?displayName(t):sourceLabel(m.sources[i])).join(' vs '))}</title>`;
   s+=rect(p.x,p.y,p.w,p.h,'#fff','#cf0c30',3,'class="card-outline" stroke-width="1.5"')+rect(p.x+1,p.y+1,p.w-2,45,'#cf0c30');
-  s+=text(p.x+p.w/2,p.y+31,'M14 · 总决赛',23,700,'#fff','text-anchor="middle"');
+  s+=text(p.x+p.w/2,p.y+22,'M14 · 总决赛',19,700,'#fff','text-anchor="middle"');
+  s+=text(p.x+p.w/2,p.y+39,formatSchedule(state.schedules[id]),12,500,'#fff','text-anchor="middle"');
   for(let i=0;i<2;i++){
    const tid=participants[i],label=tid?displayName(tid):sourceLabel(m.sources[i]),ry=p.y+46+i*76,isWin=tid&&r?.winnerId===tid;
    if(isWin)s+=rect(p.x+1,ry,p.w-2,76,'#fff5f6');
@@ -164,7 +167,7 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   out+=wire('M1264 914 H1298 V932 H1332')+wire('M1578 914 H1628 V656 H1648');
   for(const id of IDS)out+=LAYOUT[id].type==='group'?groupCard(id):LAYOUT[id].type==='final'?finalCard():standardCard(id);
   out+=line(54,1040,1866,1040)+wire('M60 1066 H101');
-  out+=text(116,1072,'连线仅表示胜者晋级；参赛来源与负者去向见各场次卡片。',16,400,'#788497');
+  out+=text(116,1072,'时间均为北京时间；连线仅表示胜者晋级，负者去向见卡片。',16,400,'#788497');
   out+=text(1863,1071,'AWA CUP / DOTA 2',13,400,'#98a2b2','text-anchor="end"');
   $('canvas').innerHTML=out+'</svg>';
   updateStats();
@@ -222,8 +225,9 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   route+=m.loseTo?`　｜　负者 → ${m.loseTo}`:id==='M14'?'　｜　负者 → 亚军':'　｜　负者结束本届比赛';
   if(Number(id.slice(1))<=4)route+='。分组赛为 BO1。';
   $('matchRoute').textContent=route;
-  $('saveMatch').disabled=!pair.every(Boolean);$('clearMatch').hidden=!r;
-  $('matchDialog').querySelectorAll('input, [data-winner]').forEach(el=>el.disabled=!canEdit||!pair.every(Boolean));
+  $('saveMatch').disabled=!canEdit;$('clearMatch').hidden=!r;
+  $('matchSides').querySelectorAll('input, [data-winner]').forEach(el=>el.disabled=!canEdit||!pair.every(Boolean));
+  $('matchTime').value=state.schedules[id]||'';$('matchTime').disabled=!canEdit;
   $('saveMatch').hidden=!canEdit;$('clearMatch').hidden=!canEdit||!r;
   if(!canEdit)$('matchSubtitle').textContent='已发布赛程 · 比分与晋级关系';
   $('matchDialog').showModal();
@@ -239,13 +243,15 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   });
  }
  function finishConfirm(answer){$('confirmDialog').close();const resolve=confirmResolve;confirmResolve=null;if(resolve)resolve(answer);}
- async function applyMatch(nextRecord){
+ async function applyMatch(nextRecord,scheduledAt){
   if(!canEdit)return;
   const id=activeMatch,candidate=clone(state);
   if(nextRecord)candidate.matches[id]=nextRecord;else delete candidate.matches[id];
+  if(scheduledAt!==undefined){if(scheduledAt)candidate.schedules[id]=scheduledAt;else delete candidate.schedules[id];}
   const removed=reconcile(candidate);
+  try{validateState(candidate);}catch(e){errorIn('matchError',e.message);return;}
   if(removed.length && !await confirmAction('将同步更新后续对阵',`修改 ${id} 会改变后续参赛来源。为避免旧赛果对应到错误战队，将清除 ${removed.join('、')} 的比分和胜负记录。\n战队名称和队标不会被删除。`,'确认更新'))return;
-  state=candidate;save();render();$('matchDialog').close();toast(nextRecord?.winnerId?`${id} 赛果已保存，晋级对阵已更新。`:nextRecord?`${id} 比分已保存，尚未确认胜者。`:`${id} 结果已清除。`);
+  state=candidate;save();render();$('matchDialog').close();toast(`${id} 已加入草稿；点击上方「发布赛程」统一保存。`);
  }
  function setPresentation(value){presentation=value;document.body.classList.toggle('presentation',value);$('exitPresent').hidden=!value;if(value)window.scrollTo(0,0);}
  function closeMenus(){for(const id of ['export','more']){$(id+'Menu').hidden=true;$(id+'Toggle').setAttribute('aria-expanded','false');}}
@@ -313,10 +319,11 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
  });
  $('matchSides').addEventListener('click',event=>{const button=event.target.closest('[data-winner]');if(button&&!button.disabled)selectWinner(button.dataset.winner);});
  $('matchForm').addEventListener('submit',async event=>{
-  event.preventDefault();const pair=getParticipants(activeMatch);if(!pair.every(Boolean))return;
+  event.preventDefault();if(!canEdit)return;const pair=getParticipants(activeMatch);
+  if(!pair.every(Boolean)){await applyMatch(null,$('matchTime').value);return;}
   const scores=[0,1].map(i=>{const raw=$('score-'+i).value.trim();return raw===''?null:Number(raw);});
   const error=checkScores(activeMatch,scores,selectedWinner,pair);if(error){errorIn('matchError',error);return;}
-  await applyMatch(selectedWinner||scores.some(x=>x!==null)?{teamIds:pair,scores,winnerId:selectedWinner}:null);
+  await applyMatch(selectedWinner||scores.some(x=>x!==null)?{teamIds:pair,scores,winnerId:selectedWinner}:null,$('matchTime').value);
  });
  $('clearMatch').addEventListener('click',()=>applyMatch(null));
  document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>$(button.dataset.close).close()));
@@ -354,7 +361,7 @@ import { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants as resolveP
   for(const id of ['editTeams','importJSON','clearResults','resetAll'])$(id).hidden=!canEdit;
   $('exportHTML').hidden=true;
   document.body.classList.toggle('view-only',!canEdit);
-  document.querySelector('.hintbar .left span').textContent=canEdit?'报名后点击席位安排对阵；确定参赛双方后可录入赛果。':'点击场次查看比分；胜者与负者按赛制自动晋级。';
+  document.querySelector('.hintbar .left span').textContent=canEdit?'点击场次编号填写北京时间；点击席位安排对阵，确认双方后录入赛果。':'时间均为北京时间；点击场次查看详情，胜负按赛制自动晋级。';
  }
  window.addEventListener('message',event=>{
   if(event.source!==window.parent||event.origin!==window.location.origin)return;

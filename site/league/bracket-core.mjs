@@ -21,7 +21,12 @@
  const IDS = Object.keys(MATCHES);
  const newId = () => 'awa-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
  const teamLabel = id => `战队 ${SEEDS.indexOf(id)+1}`;
- const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:'',captain:'',members:[]}])),assignments:Object.fromEntries(SEEDS.map(id=>[id,null])),matches:{}});
+ const blankState = () => ({schema:'awacup-bracket-v1',workspaceId:newId(),updatedAt:null,teams:Object.fromEntries(SEEDS.map(id=>[id,{name:'',logo:'',captain:'',members:[]}])),assignments:Object.fromEntries(SEEDS.map(id=>[id,null])),matches:{},schedules:{}});
+ function validSchedule(value){
+  if(typeof value!=='string'||!/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))return false;
+  const d=new Date(value+':00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,16)===value;
+ }
+ const formatSchedule=value=>value?value.slice(5).replace('T',' ').replace('-','/'):'时间待定';
  const sourceLabel = source => source.seed || `${source.match} ${source.outcome==='winner'?'胜者':'负者'}`;
  const isLogo = value => typeof value === 'string' && value.length < 400000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
 
@@ -49,6 +54,12 @@
   const s=blankState();
   s.workspaceId=typeof raw.workspaceId==='string' && /^[a-zA-Z0-9_-]{1,100}$/.test(raw.workspaceId) ? raw.workspaceId:newId();
   s.updatedAt=typeof raw.updatedAt==='string' && Number.isFinite(Date.parse(raw.updatedAt))?raw.updatedAt:null;
+  const schedules=raw.schedules??{};
+  if(typeof schedules!=='object'||Array.isArray(schedules))throw new Error('比赛时间格式无效。');
+  for(const [id,value] of Object.entries(schedules)){
+   if(!IDS.includes(id)||!validSchedule(value))throw new Error(`${id} 的比赛时间无效，请填写北京时间（日期及小时分钟）。`);
+   s.schedules[id]=value;
+  }
   // Older seasons only had slot-bound teams. Preserve played brackets; unplayed rosters become unassigned.
   const assignments=raw.assignments===undefined?Object.fromEntries(SEEDS.map(id=>[id,Object.keys(raw.matches).length?id:null])):raw.assignments;
   if(!assignments||typeof assignments!=='object'||Array.isArray(assignments))throw new Error('对阵安排格式无效。');
@@ -87,4 +98,4 @@
   return '';
  }
 
-export { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants, reconcile, validateState, checkScores };
+export { SEEDS, MATCHES, IDS, blankState, teamLabel, getParticipants, reconcile, validateState, checkScores, validSchedule, formatSchedule };

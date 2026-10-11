@@ -58,8 +58,8 @@ dialog{color:var(--ink);font-family:var(--font);border:1px solid #dde2e9;padding
 <dialog class="match-dialog" id="matchDialog" aria-labelledby="matchTitle">
  <form id="matchForm">
  <div class="dialog-head"><div><div class="match-kicker" id="matchKicker"></div><h2 id="matchTitle">录入赛果</h2><p id="matchSubtitle"></p></div><button class="close-button" type="button" data-close="matchDialog" aria-label="关闭">×</button></div>
- <div class="dialog-body"><div id="matchSides"></div><div class="result-info" id="resultInfo"></div><div class="info-box" id="matchRoute"></div><div class="field-error" id="matchError" hidden></div></div>
- <div class="dialog-foot"><div class="match-foot-left"><button type="button" class="btn text danger" id="clearMatch">清除本场</button></div><button type="button" class="btn" data-close="matchDialog">取消</button><button type="submit" class="btn red" id="saveMatch">保存赛果</button></div>
+ <div class="dialog-body"><label for="matchTime" style="display:block;margin-bottom:18px;font-size:14px">比赛时间（北京时间）<input id="matchTime" type="datetime-local" min="2000-01-01T00:00" max="2099-12-31T23:59" style="display:block;width:100%;padding:10px;margin-top:8px;font:inherit;border:1px solid #cbd2dc;border-radius:6px"><small style="display:block;margin-top:6px;color:#737d8c">可在参赛队伍确定前排期；留空表示时间待定。</small></label><div id="matchSides"></div><div class="result-info" id="resultInfo"></div><div class="info-box" id="matchRoute"></div><div class="field-error" id="matchError" hidden></div></div>
+ <div class="dialog-foot"><div class="match-foot-left"><button type="button" class="btn text danger" id="clearMatch">清除赛果</button></div><button type="button" class="btn" data-close="matchDialog">取消</button><button type="submit" class="btn red" id="saveMatch">保存时间与赛果</button></div>
  </form>
 </dialog>
 
